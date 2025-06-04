@@ -1,0 +1,17 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- Circular testing cycle -->
+    <circle cx="100" cy="100" r="80" stroke="black" stroke-width="6" fill="none" stroke-dasharray="8,4"/>
+
+    <!-- Arrows representing iterative testing -->
+    <polyline points="160,100 140,80 160,60" stroke="black" stroke-width="4" fill="none"/>
+    <polyline points="40,100 60,120 40,140" stroke="black" stroke-width="4" fill="none"/>
+
+    <!-- Clock symbol representing past tests -->
+    <circle cx="100" cy="100" r="40" stroke="black" stroke-width="3" fill="none"/>
+    <line x1="100" y1="100" x2="100" y2="80" stroke="black" stroke-width="3"/>
+    <line x1="100" y1="100" x2="120" y2="100" stroke="black" stroke-width="3"/>
+
+    <!-- Bigger passed and failed status indicators -->
+    <circle cx="150" cy="40" r="20" fill="green"/>
+    <circle cx="50" cy="160" r="20" fill="red"/>
+</svg>

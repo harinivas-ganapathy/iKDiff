@@ -1,0 +1,23 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+  <idea-version since-build="242" until-build="252.*" />
+  <change-notes><![CDATA[<h3>Added</h3>
+
+<ul><li>Initial scaffold created from <a href="https://github.com/JetBrains/intellij-platform-plugin-template">IntelliJ Platform Plugin Template</a></li></ul>]]></change-notes>
+  <description><![CDATA[<p>This Fancy IntelliJ Platform Plugin is going to be your implementation of the brilliant ideas that you have.</p>
+
+<p>This specific section is a source for the <a href="/src/main/resources/META-INF/plugin.xml">plugin.xml</a> file which will be extracted by the <a href="/build.gradle.kts">Gradle</a> during the build process.</p>
+
+<p>To keep everything working, do not remove <code>&lt;!-- ... --&gt;</code> sections.</p>]]></description>
+  <version>0.0.1</version>
+  <id>com.github.harinivasganapathy.idiff</id>
+  <name>IDiff</name>
+  <vendor>harinivas-ganapathy</vendor>
+  <depends>com.intellij.modules.platform</depends>
+  <resource-bundle>messages.MyBundle</resource-bundle>
+  <extensions defaultExtensionNs="com.intellij">
+    <toolWindow factoryClass="com.github.harinivasganapathy.idiff.toolWindow.MyToolWindowFactory" id="InfomedRegDiff" />
+    <!--        <postStartupActivity implementation="com.github.harinivasganapathy.idiff.startup.MyProjectActivity" />-->
+    <!--        <projectService serviceImplementation="com.github.harinivasganapathy.idiff.startup.MyProjectActivity"/>-->
+  </extensions>
+</idea-plugin>

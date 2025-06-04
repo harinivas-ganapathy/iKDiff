@@ -1,0 +1,107 @@
+package com.github.harinivasganapathy.idiff
+
+import com.intellij.diff.DiffContentFactory
+import com.intellij.diff.DiffManager
+import com.intellij.diff.requests.SimpleDiffRequest
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
+import java.awt.BorderLayout
+import java.awt.event.ActionListener
+import java.io.File
+import javax.swing.JButton
+import javax.swing.JLabel
+import javax.swing.JPanel
+
+class FileComparatorPanel(private val project: Project) : JBPanel<FileComparatorPanel>(BorderLayout()) {
+    private val baselineDropdown = ComboBox<String>()
+    private val regressionDropdown = ComboBox<String>()
+    private val baselineButton = JButton("Baseline Button")
+    private val regressionButton = JButton("Regression Button")
+    private val diffPanel = JPanel(BorderLayout())
+
+    private var baselineFile: VirtualFile? = null
+    private var regressionFile: VirtualFile? = null
+
+    init {
+        val controlsPanel = JPanel()
+        controlsPanel.add(JLabel("Baseline:"))
+        controlsPanel.add(baselineDropdown)
+        controlsPanel.add(baselineButton)
+        controlsPanel.add(JLabel("Regression:"))
+        controlsPanel.add(regressionDropdown)
+        controlsPanel.add(regressionButton)
+
+        add(controlsPanel, BorderLayout.NORTH)
+        add(JBScrollPane(diffPanel), BorderLayout.CENTER)
+
+        baselineButton.addActionListener { loadFiles("baseline", baselineDropdown) }
+        regressionButton.addActionListener { loadFiles("regression", regressionDropdown) }
+
+        baselineDropdown.addActionListener { updateDiff() }
+        regressionDropdown.addActionListener { updateDiff() }
+    }
+
+    private fun loadFiles(directoryName: String, dropdown: ComboBox<String>) {
+        val descriptor = FileChooserDescriptor(false, true, false, false, false, false)
+        val virtualFile = FileChooser.chooseFile(descriptor, project, null)
+        virtualFile?.let {
+            val directory = File(it.path, directoryName)
+            if (directory.exists() && directory.isDirectory) {
+                val files = directory.listFiles()
+                if (!files.isNullOrEmpty()) {
+                    dropdown.removeAllItems()
+                    val virtualFiles = mutableListOf<VirtualFile>()
+                    files.filter { it.isFile }.forEach { file ->
+                        dropdown.addItem(file.name)
+                        LocalFileSystem.getInstance().findFileByIoFile(file)?.let { virtualFiles.add(it) }
+                    }
+                    if (directoryName == "baseline") {
+                        baselineFile = virtualFiles.firstOrNull()
+                    } else if (directoryName == "regression") {
+                        regressionFile = virtualFiles.firstOrNull()
+                    }
+                    updateDiff()
+                } else {
+                    Messages.showInfoMessage("No files found in the '$directoryName' directory.", "Info")
+                }
+            } else {
+                Messages.showErrorDialog("Directory '$directoryName' not found in the selected location.", "Error")
+            }
+        }
+    }
+
+    private fun updateDiff() {
+        if (baselineDropdown.selectedItem != null && regressionDropdown.selectedItem != null) {
+            val baselineFileName = baselineDropdown.selectedItem as String
+            val regressionFileName = regressionDropdown.selectedItem as String
+
+            val selectedBaselineFile = baselineFile?.parent?.findChild(baselineFileName)
+            val selectedRegressionFile = regressionFile?.parent?.findChild(regressionFileName)
+
+            if (selectedBaselineFile != null && selectedRegressionFile != null) {
+                val request = SimpleDiffRequest(
+                    "$baselineFileName (Baseline)",
+                    DiffContentFactory.getInstance().create(project, selectedBaselineFile),
+                    DiffContentFactory.getInstance().create(project, selectedRegressionFile),"",
+                    "Comparison"
+                )
+                DiffManager.getInstance().showDiff(project, request)
+            } else {
+                diffPanel.removeAll()
+                diffPanel.repaint()
+                diffPanel.revalidate()
+            }
+        } else {
+            diffPanel.removeAll()
+            diffPanel.repaint()
+            diffPanel.revalidate()
+        }
+    }
+}

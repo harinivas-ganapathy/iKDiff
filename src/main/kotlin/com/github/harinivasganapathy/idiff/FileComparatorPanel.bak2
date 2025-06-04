@@ -1,0 +1,147 @@
+package com.github.harinivasganapathy.idiff
+
+import com.intellij.diff.DiffContentFactory
+import com.intellij.diff.DiffManager
+import com.intellij.diff.requests.SimpleDiffRequest
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
+import java.awt.BorderLayout
+import java.awt.event.ActionListener
+import java.io.File
+import javax.swing.DefaultComboBoxModel
+import javax.swing.JButton
+import javax.swing.JLabel
+import javax.swing.JPanel
+
+class FileComparatorPanel(private val project: Project) : JBPanel<FileComparatorPanel>(BorderLayout()) {
+    private val baselineDropdown = ComboBox<String>()
+    private val regressionDropdown = ComboBox<String>()
+    private val baselineButton = JButton("Baseline")
+    private val regressionButton = JButton("Regression")
+    private val previousButton = JButton("Previous")
+    private val nextButton = JButton("Next")
+    private val diffPanel = JPanel(BorderLayout())
+
+    private var baselineFiles: List<VirtualFile> = emptyList()
+    private var regressionFiles: List<VirtualFile> = emptyList()
+
+    init {
+        val controlsPanel = JPanel()
+        controlsPanel.add(JLabel("Baseline:"))
+        controlsPanel.add(baselineDropdown)
+        controlsPanel.add(baselineButton)
+        controlsPanel.add(JLabel("Regression:"))
+        controlsPanel.add(regressionDropdown)
+        controlsPanel.add(regressionButton)
+        controlsPanel.add(previousButton)
+        controlsPanel.add(nextButton)
+
+        add(controlsPanel, BorderLayout.NORTH)
+        add(JBScrollPane(diffPanel), BorderLayout.CENTER)
+
+        baselineButton.addActionListener { loadFiles("baseline", baselineDropdown) }
+        regressionButton.addActionListener { loadFiles("regression", regressionDropdown) }
+
+        baselineDropdown.addActionListener { updateDiff() }
+        regressionDropdown.addActionListener { updateDiff() }
+
+        previousButton.addActionListener { navigateFiles(-1) }
+        nextButton.addActionListener { navigateFiles(1) }
+
+        previousButton.isEnabled = false
+        nextButton.isEnabled = false
+    }
+
+    private fun loadFiles(directoryName: String, dropdown: ComboBox<String>) {
+        val descriptor = FileChooserDescriptor(false, true, false, false, false, false)
+        val virtualFile = FileChooser.chooseFile(descriptor, project, null)
+        virtualFile?.let {
+            val directory = File(it.path, directoryName)
+            if (directory.exists() && directory.isDirectory) {
+                val files = directory.listFiles()
+                if (!files.isNullOrEmpty()) {
+                    dropdown.removeAllItems()
+                    val virtualFiles = files.filter { it.isFile }.mapNotNull { LocalFileSystem.getInstance().findFileByIoFile(it) }
+                    if (directoryName == "baseline") {
+                        baselineFiles = virtualFiles
+                    } else if (directoryName == "regression") {
+                        regressionFiles = virtualFiles
+                    }
+                    dropdown.model = DefaultComboBoxModel(virtualFiles.map { it.name }.toTypedArray())
+                    if (virtualFiles.isNotEmpty()) {
+                        dropdown.selectedIndex = 0
+                    }
+                    updateNavigationButtonStates()
+                    updateDiff()
+                } else {
+                    Messages.showInfoMessage("No files found in the '$directoryName' directory.", "Info")
+                    if (directoryName == "baseline") baselineFiles = emptyList() else regressionFiles = emptyList()
+                    dropdown.removeAllItems()
+                    updateDiff()
+                    updateNavigationButtonStates()
+                }
+            } else {
+                Messages.showErrorDialog("Directory '$directoryName' not found in the selected location.", "Error")
+                if (directoryName == "baseline") baselineFiles = emptyList() else regressionFiles = emptyList()
+                dropdown.removeAllItems()
+                updateDiff()
+                updateNavigationButtonStates()
+            }
+        }
+    }
+
+    private fun updateDiff() {
+        val baselineSelectedIndex = baselineDropdown.selectedIndex
+        val regressionSelectedIndex = regressionDropdown.selectedIndex
+
+        if (baselineSelectedIndex != -1 && regressionSelectedIndex != -1 &&
+            baselineSelectedIndex < baselineFiles.size && regressionSelectedIndex < regressionFiles.size) {
+            val selectedBaselineFile = baselineFiles[baselineSelectedIndex]
+            val selectedRegressionFile = regressionFiles[regressionSelectedIndex]
+            val baselineFileName = selectedBaselineFile.name
+            val regressionFileName = selectedRegressionFile.name
+
+            val request = SimpleDiffRequest(
+                "$baselineFileName (Baseline)",
+                DiffContentFactory.getInstance().create(project, selectedBaselineFile),
+                DiffContentFactory.getInstance().create(project, selectedRegressionFile),
+                "$regressionFileName (Regression)",
+
+                "Comparison"
+            )
+            DiffManager.getInstance().showDiff(project, request)
+        } else {
+            diffPanel.removeAll()
+            diffPanel.repaint()
+            diffPanel.revalidate()
+        }
+        updateNavigationButtonStates()
+    }
+
+    private fun navigateFiles(direction: Int) {
+        val newBaselineIndex = baselineDropdown.selectedIndex + direction
+        val newRegressionIndex = regressionDropdown.selectedIndex + direction
+
+        if (newBaselineIndex in 0 until baselineFiles.size && newRegressionIndex in 0 until regressionFiles.size) {
+            baselineDropdown.selectedIndex = newBaselineIndex
+            regressionDropdown.selectedIndex = newRegressionIndex
+            updateDiff()
+        } else {
+            // Optionally provide feedback to the user if they've reached the end of the list
+        }
+    }
+
+    private fun updateNavigationButtonStates() {
+        previousButton.isEnabled = baselineFiles.isNotEmpty() && baselineDropdown.selectedIndex > 0 &&
+                regressionFiles.isNotEmpty() && regressionDropdown.selectedIndex > 0
+        nextButton.isEnabled = baselineFiles.isNotEmpty() && baselineDropdown.selectedIndex < baselineFiles.size - 1 &&
+                regressionFiles.isNotEmpty() && regressionDropdown.selectedIndex < regressionFiles.size - 1
+    }
+}
